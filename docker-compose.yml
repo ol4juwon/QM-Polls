@@ -1,0 +1,64 @@
+version: "3.8"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports: ["5672:5672", "15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  postgres-poll:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: polls
+    ports: ["5432:5432"]
+
+  postgres-vote:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: votes
+    ports: ["5433:5432"]
+
+  polls-service:
+    build: ./polls-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-poll:5432/polls
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: pass
+    ports: ["8081:8080"]
+    depends_on: [postgres-poll]
+
+  vote-publisher-service:
+    build: ./vote-publisher
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      REDIS_HOST: redis
+      POLL_SVC_URL: http://polls-service:8080
+    ports: ["8082:8080"]
+    depends_on: [rabbitmq, redis]
+
+  vote-processor:
+    build: ./vote-processor
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-vote:5432/votes
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: pass
+      REDIS_HOST: redis
+    ports: ["8083:8080"]
+    depends_on: [rabbitmq, postgres-vote, redis]
+
+  websocket-service:
+    build: ./socket-server
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    ports: ["8084:8080"]
+    depends_on: [rabbitmq, vote-publisher-service]
