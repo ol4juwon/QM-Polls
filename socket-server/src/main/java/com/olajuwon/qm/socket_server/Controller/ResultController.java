@@ -13,20 +13,30 @@ import jakarta.websocket.Session;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.server.standard.SpringConfigurator;
 
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
-@ServerEndpoint("/ws/polls/{pollId}")
+@ServerEndpoint(value="/ws/polls/{pollId}", configurator = com.olajuwon.qm.socket_server.Config.SpringConfigurator.class)
 @Component
 public class ResultController {
 
     private static final Set<Session> sessions = ConcurrentHashMap.newKeySet();
-    private static VoteService voteService;
+
+
+    private final VoteService voteService;
+
+    public ResultController(VoteService voteService) {
+        this.voteService = voteService;
+    }
+
     private static final ConcurrentHashMap<String, Set<Session>> pollSessions = new ConcurrentHashMap<>();
 
     @OnOpen
@@ -38,6 +48,7 @@ public class ResultController {
     @OnMessage
     public void onMessage(String msg, Session session,  @PathParam("pollId") String pollId){
         try {
+            log.info("Received message: {}", msg);
             ObjectMapper mapper = new ObjectMapper();
             VoteMessageDTO pollMsg = mapper.readValue(msg, VoteMessageDTO.class);
 
@@ -45,7 +56,7 @@ public class ResultController {
 
               JsonObject response =  voteService.vote(pollId,pollMsg.getUsername(), pollMsg.getOption());
 
-                if(!response.getBoolean("status")) {
+                if(response.getBoolean("status")) {
                     session.getBasicRemote().sendText("Vote recorded for " + pollMsg.getOption());
                 }else{
                     session.getBasicRemote().sendText("Sorry, vote was not recorded");
