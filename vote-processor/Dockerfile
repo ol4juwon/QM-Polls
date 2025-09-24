@@ -1,5 +1,4 @@
-# ----------- Stage 1: Build the app -----------
-FROM openjdk:21-jdk-slim AS build
+FROM gradle:8.5.0-jdk21 AS build
 
 WORKDIR /app
 
@@ -11,8 +10,7 @@ COPY src ./src
 # Build the application
 RUN ./mvnw clean package -DskipTests
 
-# ----------- Stage 2: Create runtime image -----------
-FROM openjdk:21-jdk-slim
+FROM gradle:8.5.0-jdk21
 
 WORKDIR /app
 

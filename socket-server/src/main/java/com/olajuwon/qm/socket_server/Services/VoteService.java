@@ -31,7 +31,7 @@ public class VoteService {
     private PollRepository pollRepository;
     @Autowired
     private StringRedisTemplate redisTemplate;
-    VoteService(@Value("${POLL_SVC_URL:http://localhost:5006/api/v1}") String  voteURl) {
+    VoteService(@Value("${POLL_SVC_URL:http://localhost:7002/api/v1}") String  voteURl) {
         this.webclient = WebClient.create(voteURl);
     }
     public JsonObject vote(String pollid, String username, String option) throws JSONException {

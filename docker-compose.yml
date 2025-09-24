@@ -6,10 +6,14 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - poll-network
 
   redis:
     image: redis:7
     ports: ["6379:6379"]
+    networks:
+      - poll-network
 
   postgres-poll:
     image: postgres:15
@@ -18,6 +22,8 @@ services:
       POSTGRES_PASSWORD: pass
       POSTGRES_DB: polls
     ports: ["5432:5432"]
+    networks:
+      - poll-network
 
   polls-service:
     build: ./polls-service
@@ -27,6 +33,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: pass
     ports: ["7001:7001"]
     depends_on: [postgres-poll]
+    networks:
+      - poll-network
 
   vote-publisher-service:
     build: ./vote-publisher
@@ -36,6 +44,8 @@ services:
       POLL_SVC_URL: http://polls-service:7001
     ports: ["7002:7002"]
     depends_on: [rabbitmq, redis]
+    networks:
+      - poll-network
 
   vote-processor:
     build: ./vote-processor
@@ -47,10 +57,13 @@ services:
       REDIS_HOST: redis
     ports: ["7003:7003"]
     depends_on: [rabbitmq, postgres-poll, redis]
+    networks:
+      - poll-network
 
   websocket-service:
     build: ./socket-server
     environment:
+      POLL_SVC_URL: http://vote-publisher-service:7002/api/v1
       RABBITMQ_HOST: rabbitmq
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-poll:5432/polls
       SPRING_DATASOURCE_USERNAME: postgres
@@ -58,3 +71,10 @@ services:
       REDIS_HOST: redis
     ports: ["7004:7004"]
     depends_on: [rabbitmq, postgres-poll, vote-publisher-service]
+    networks:
+      - poll-network
+
+
+networks:
+  poll-network:
+    driver: bridge
