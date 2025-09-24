@@ -31,21 +31,39 @@ public class VoteService {
     private PollRepository pollRepository;
     @Autowired
     private StringRedisTemplate redisTemplate;
-    VoteService(@Value("${POLL_SVC_URL:http://localhost:5004/api/v1}") String  voteURl) {
+    VoteService(@Value("${POLL_SVC_URL:http://localhost:5006/api/v1}") String  voteURl) {
         this.webclient = WebClient.create(voteURl);
     }
     public JsonObject vote(String pollid, String username, String option) throws JSONException {
+log.info("vote: {}, {}, {}", pollid, username, option);
+try {
+    Map<String, String> body = Map.of("userId", username, "option", option);
 
+    Map response = webclient.post().uri("/polls/{id}/vote", pollid).bodyValue(body).retrieve().bodyToMono(Map.class).block();
+    log.info("response: {}", response);
+    if (response == null) {
+        return new JsonObject().put("status", false).put("message", "Failed to post vote");
+    }
 
-        Map response = webclient.post().uri("/polls/{id}", pollid).retrieve().bodyToMono(Map.class).block();
-        if(response == null){
-            return new JsonObject().put("status", false).put("message","Failed to post vote");
-        }
-        if((boolean) response.get("status").equals(true)){
-            return new JsonObject().put("status", true).put("message","Vote posted successfully");
-        }else {
-            return new JsonObject().put("status", false).put("message","Failed to post vote");
-        }
+    if (response.get("status").equals(true)) {
+        return new JsonObject().put("status", true).put("message", "Vote posted successfully");
+    } else {
+        return new JsonObject().put("status", false).put("message", "Failed to post vote");
+    }
+} catch (WebClientResponseException e) {
+    // HTTP error response
+    log.error("error: {}", e.getMessage());
+    String errorBody = e.getResponseBodyAsString();
+    int statusCode = e.getRawStatusCode();
+
+    System.out.println("Error status: " + statusCode);
+    System.out.println("Error body: " + errorBody);
+//}
+
+//catch (Exception e){
+//    log.error("error: {}", e.getMessage(), e);
+    return new JsonObject().put("status", false).put("message", "Failed to post vote");
+}
      }
 
 
